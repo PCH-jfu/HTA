@@ -17,12 +17,22 @@ __email__ = "justin.fu@pchintl.com"
 class SerialThread(threading.Thread):
     def __init__(self, queue):
         threading.Thread.__init__(self)
+
+	# Create a queue for sending UID and ADC value
         self.queue = queue
+
+	# Event for shutdown buton and reset button
         self.shutdown_flag = threading.Event()
         self.reset_flag = threading.Event()
+
+	# List all serial ports
         self.ports = list(serial.tools.list_ports.comports())
+
+	# Exit when no serial port exist
         if not self.ports:
             sys.exit()
+
+	# Check and find out the serial port for MSP430
         for p in self.ports:
             if 'MSP430' in str(p):
                 self.port_name = p.device
@@ -31,53 +41,76 @@ class SerialThread(threading.Thread):
                 sys.exit()
         
     def run(self):
+        # Maximum number of message(ADC)
+        max_count = 20
+        # Recycle the useless message 
+        clear_queue = 0
+        # Count the number of sent message
+        count = 0
+        # 
+        uid_detect = False
+
+	# Setup serial port
         ser = serial.Serial(self.port_name, 9600, timeout=0.1)
-        self.clear_queue = 0
-        self.count = 0
-        self.uid_detect = False
+	
+	# TODO: Remove the outside while loop
         while True:
             
             # this loop is break only when 
             while True:
+
                 # check if close button is press
                 if self.shutdown_flag.is_set():
                     return
                 # check if reset button is press
                 elif self.reset_flag.is_set():
                     # clear everything in this thread
-                    self.uid_detect = False
-                    self.count = 0
+                    uid_detect = False
+                    count = 0
                     while self.queue.qsize():
                         try:
                             print("queue clean")
-                            self.queue.get(self.clear_queue)
+                            self.queue.get(clear_queue)
                         except queue.Empty:
                             pass
                     # clear reset flag
                     self.reset_flag.clear()
 
-                # read a line from serial port    
+
+                # Read a line from serial port    
                 self.read_out = ser.readline().decode('latin1')
-                    
-                if "UID:" in self.read_out and not self.uid_detect:
+                
+		# If 1. the message contains the UID, 
+                #    2. UID is not detected before
+                if "UID:" in self.read_out and not uid_detect:
                     self.send = "UID: " + self.read_out[self.read_out.find('[')+1: self.read_out.find(']')]
+                    # Put the message(UID) into the queue
+                    # The message is like, "UID: E007A20000001234"
                     self.queue.put(self.send)
                     print(self.send)
-                    self.uid_detect = True
-                    self.count = 0
-
-                elif "Block 04 Data:" in self.read_out and self.count < 20 and self.uid_detect:
+                    # As long as the first UID is detect, begin to count the number of the out-sending ADC value 
+                    uid_detect = True
+                    count = 0
+		
+		# If 1. the message contains the ADC value, 
+                #    2. the number of sent message(ADC) is less than maximum message(ADC) 
+                #    3. UID is detect
+                elif "Block 04 Data:" in self.read_out and count < max_count and uid_detect:
                     self.adc_start = self.read_out.find('[')+5
                     self.send = "ADC: " + self.read_out[self.adc_start+2: self.adc_start+4] + self.read_out[self.adc_start: self.adc_start+2]
+                    # Put the message(ADC value in hex) into the queue
+                    # The message is like, "ADC: 0001"
                     self.queue.put(self.send)
                     print(self.send)
-                    self.count += 1
+                    # count the number of the sent ADC value
+                    count += 1
                     
                 ser.flush()
 
 
 
 class  Application(tk.Frame):
+
     def __init__(self, master=None):
         super().__init__(master)
         self.pack(fill="both", expand=True)
@@ -92,23 +125,23 @@ class  Application(tk.Frame):
 
     def create_widgets(self):
 
-        # Display UID
+        # Frame 1: Display UID
         self.uid_frame = tk.Frame(self, relief="raised", borderwidth=1)
         self.uid_frame.pack(fill = "x")
-
+        
         self.uid_label = tk.Label(self.uid_frame, text="UID: ", font=("Counrier", 25))
         self.uid_label.pack(side="left", padx=10, pady=10)
         
         self.uid_text = tk.Entry(self.uid_frame, font=("Counrier, 25"), bg="light gray")
         self.uid_text.pack(fill="both", padx=10, pady=10, expand=True)
 
-        # The first test
+        # Frame 2: The first test
         self.test1_frame = tk.Frame(self, relief="raised", borderwidth=1)
-        self.test1_frame.columnconfigure(0, pad=10, weight=1, uniform="four")
-        self.test1_frame.columnconfigure(1, pad=10, weight=1, uniform="four")
-        self.test1_frame.columnconfigure(2, pad=10, weight=1, uniform="four")
-        self.test1_frame.columnconfigure(3, pad=10, weight=1, uniform="four")
-        self.test1_frame.columnconfigure(4, pad=10, weight=1, uniform="four")
+        self.test1_frame.columnconfigure(0, pad=10, weight=1, uniform="five")
+        self.test1_frame.columnconfigure(1, pad=10, weight=1, uniform="five")
+        self.test1_frame.columnconfigure(2, pad=10, weight=1, uniform="five")
+        self.test1_frame.columnconfigure(3, pad=10, weight=1, uniform="five")
+        self.test1_frame.columnconfigure(4, pad=10, weight=1, uniform="five")
         self.test1_frame.rowconfigure(0, pad = 10)
         self.test1_frame.pack(fill = "x")
 
@@ -128,13 +161,13 @@ class  Application(tk.Frame):
         self.result1_label = tk.Label(self.result1_frame, font=("Counrier", 25))
         self.result1_label.pack(fill="none", expand=True)
 
-        # The second test
+        # Frame 3: The second test
         self.test2_frame = tk.Frame(self, relief="raised", borderwidth=1)
-        self.test2_frame.columnconfigure(0, pad=10, weight=1, uniform="four")
-        self.test2_frame.columnconfigure(1, pad=10, weight=1, uniform="four")
-        self.test2_frame.columnconfigure(2, pad=10, weight=1, uniform="four")
-        self.test2_frame.columnconfigure(3, pad=10, weight=1, uniform="four")
-        self.test2_frame.columnconfigure(4, pad=10, weight=1, uniform="four")
+        self.test2_frame.columnconfigure(0, pad=10, weight=1, uniform="five")
+        self.test2_frame.columnconfigure(1, pad=10, weight=1, uniform="five")
+        self.test2_frame.columnconfigure(2, pad=10, weight=1, uniform="five")
+        self.test2_frame.columnconfigure(3, pad=10, weight=1, uniform="five")
+        self.test2_frame.columnconfigure(4, pad=10, weight=1, uniform="five")
         self.test2_frame.rowconfigure(0, pad=10)
         self.test2_frame.pack(fill="x")
         
@@ -156,21 +189,18 @@ class  Application(tk.Frame):
         self.result2_label = tk.Label(self.result2_frame, font=("Counrier", 25))
         self.result2_label.pack(fill="none", expand=True)
 
-        # Control button
+        # Frame 4: Control button
         self.control_frame = tk.Frame(self, relief="raised", borderwidth=1)
-        self.control_frame.columnconfigure(0, pad=10, weight=1, uniform="four")
-        self.control_frame.columnconfigure(1, pad=10, weight=1, uniform="four")
-        self.control_frame.columnconfigure(2, pad=10, weight=1, uniform="four")
-        self.control_frame.columnconfigure(3, pad=10, weight=1, uniform="four")
-        self.control_frame.columnconfigure(4, pad=10, weight=1, uniform="four")
+        self.control_frame.columnconfigure(0, pad=10, weight=1, uniform="five")
+        self.control_frame.columnconfigure(1, pad=10, weight=1, uniform="five")
+        self.control_frame.columnconfigure(2, pad=10, weight=1, uniform="five")
+        self.control_frame.columnconfigure(3, pad=10, weight=1, uniform="five")
+        self.control_frame.columnconfigure(4, pad=10, weight=1, uniform="five")
         self.control_frame.rowconfigure(0, pad=10)
         self.control_frame.pack(fill="x")
 
-        self.quit = tk.Button(self.control_frame, text="Close", fg="red", command=self.close, font=("Counrier, 25"))
-        self.quit.grid(row=0, column=4)
-        
         self.reset = tk.Button(self.control_frame, text="Reset", command=self.reset, font=("Counrier, 25"))
-        self.reset.grid(row=0, column=3)
+        self.reset.grid(row=0, column=4)
 
         self.version_label = tk.Label(self, text="Version: "+__version__)
         self.version_label.pack(side="right", padx=10, pady=10)
@@ -308,9 +338,9 @@ class  Application(tk.Frame):
             try:
                 receive = self.queue.get()
                 if "UID: " in receive:
-                    uid = receive.strip("UID: ")
+                    uid = receive.lstrip("UID: ")
                 elif "ADC: " in receive and item > 11:  # get the value in message 12-21
-                    adc = int(receive.strip("ADC: "), 16)
+                    adc = int(receive.lstrip("ADC: "), 16)
                     adc_sum = adc_sum + adc
                 print(item)
             except queue.Empty:
@@ -325,11 +355,11 @@ class  Application(tk.Frame):
             try:
                 receive = self.queue.get()
                 if "UID: " in receive:
-                    uid = receive.strip("UID: ")
+                    uid = receive.lstrip("UID: ")
                 elif "ADC: " in receive and adc1 == 0:
-                    adc1 = int(receive.strip("ADC: "), 16)
+                    adc1 = int(receive.lstrip("ADC: "), 16)
                 elif "ADC: " in receive:
-                    adc2 = int(receive.strip("ADC: "), 16)
+                    adc2 = int(receive.lstrip("ADC: "), 16)
                 print(item)
             except queue.Empty:
                 pass
