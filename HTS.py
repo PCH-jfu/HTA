@@ -9,7 +9,7 @@ import sys
 
 __author__ = "Justin Fu"
 __copyright__ = "Copyright 2018, Helios Testing Script"
-__version__ = "0.2.0"
+__version__ = "0.2.3"
 __email__ = "justin.fu@pchintl.com"
 
 
@@ -293,8 +293,11 @@ class SerialThread(threading.Thread):
                 position = read_out.find('[') + 5
                 body = read_out[position+2: position+4] + read_out[position: position+2]
                 print(body)
-                voltage = round((int(body, 16))*0.9/16383/2*1000, 2)
-                
+                try:
+                    voltage = round((int(body, 16))*0.9/16383/2*1000, 2)
+                except ValueError:
+                    sensor_out_count = 0
+                    continue
                 # Necessary to reset the sensor_out_cout because there is an empty reading after each cycle
                 sensor_out_count = 0
                 
