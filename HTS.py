@@ -6,10 +6,11 @@ import queue
 import datetime
 import serial.tools.list_ports
 import sys
+import visa
 
 __author__ = "Justin Fu"
 __copyright__ = "Copyright 2018, Helios Testing Script"
-__version__ = "0.2.3"
+__version__ = "0.3.0"
 __email__ = "justin.fu@pchintl.com"
 
 
@@ -33,6 +34,7 @@ class Application(tkinter.Frame):
         
         self.serial_thread = SerialThread(self.serial_queue, self.DMM_queue, self.station_queue, self.shutdown_event)
         self.serial_thread.start()
+        
 
     def create_widgets(self):
 
@@ -81,10 +83,10 @@ class Application(tkinter.Frame):
         self.discharge_label = tkinter.Label(self.test_cd_frame, text="DISCHG VOLT(mV)", font=("Counrier, 10"))
         self.discharge_label.grid(row=0, column=3)
         # DMM box
-        self.dmm_box = tkinter.Text(self.test_cd_frame, height=1, width=6, font=("Counrier, 25"))
+        self.dmm_box = tkinter.Text(self.test_cd_frame, height=1, width=6, font=("Counrier, 25"), bg="light gray")
         self.dmm_box.grid(row=1, column=0)
         # Set button
-        self.set_button = tkinter.Button(self.test_cd_frame, height=1, width=6, text="Set", font=("Counrier, 18"), command=self.dmm_set)
+        self.set_button = tkinter.Button(self.test_cd_frame, height=1, width=6, text="Get", font=("Counrier, 18"), command=self.dmm_set)
         self.set_button.grid(row=0, column=1, rowspan=2)
         # Charge box
         self.charge_box = tkinter.Text(self.test_cd_frame, height=1, width=6, font=("Counrier, 25"), bg="light gray")
@@ -126,9 +128,40 @@ class Application(tkinter.Frame):
             self.station_queue.put(3)
         elif selection == 4:
             self.station_queue.put(4)
+        
+        if self.DMM_queue.full():
+            self.DMM_queue.get()
+            print("clear queue")
+            self.dmm_box.delete(0.0, "end")
     
-
     def dmm_set(self):
+        if self.station_number.get() == 2:
+            rm = visa.ResourceManager()
+            for inst in rm.list_resources():
+                try:
+                    rigol = rm.open_resource(inst)
+                    break
+                except:
+                    rigol = ""
+            if not rigol:
+                print("no rigol")
+                dmm_voltage = -1
+                self.dmm_box.delete(0.0, "end")
+                self.dmm_box.insert(0.0, "nodmm")
+            else:
+                print(rigol.query("*IDN?"))
+                dmm_voltage = round(float(rigol.query(":measure:voltage:dc?"))*1000, 2)
+                self.dmm_box.delete(0.0, "end")
+                self.dmm_box.insert(0.0, dmm_voltage)
+
+            if self.DMM_queue.full():
+                self.DMM_queue.get()
+                print("clear queue")
+            self.DMM_queue.put(dmm_voltage)
+            print(dmm_voltage)
+
+
+    def dmm_set_old(self):
         dmm_value = self.dmm_box.get("1.0", "end")
         dmm_value = dmm_value.split()
         
@@ -172,22 +205,27 @@ class Application(tkinter.Frame):
             else:
                 self.uid_box.delete(0, "end")
                 self.uid_box.insert(0, message["UID"])
+
             if message["VOLT1"] == None:
                 self.avg_box.delete(0.0, "end")
             else:
                 self.avg_box.insert(0.0, message["VOLT1"])
+
             if message["DMM"] == None:
                 self.dmm_box.delete(0.0, "end")
             else:
                 self.dmm_box.insert(0.0, message["DMM"])
+
             if message["VOLT2"] == None:
                 self.charge_box.delete(0.0, "end")
             else:
                 self.charge_box.insert(0.0, message["VOLT2"])
+
             if message["VOLT3"] == None:
                 self.discharge_box.delete(0.0, "end")
             else:
                 self.discharge_box.insert(0.0, message["VOLT3"])
+
             if message["RES1"] == None:
                 self.result_avg_frame.configure(background=self.origin_color)
                 self.result_avg_label.configure(text='', background=self.origin_color)
@@ -197,6 +235,7 @@ class Application(tkinter.Frame):
             elif message["RES1"]%10 == 0:
                 self.result_avg_frame.configure(background="green")
                 self.result_avg_label.configure(text="PASS", background="green")
+
             if message["RES2"] == None:
                 self.result_cd_frame.configure(background=self.origin_color)
                 self.result_cd_label.configure(text='', background=self.origin_color)
@@ -274,6 +313,7 @@ class SerialThread(threading.Thread):
                 message = {"UID": None, "VOLT1": None, "RES1": None, "DMM": None, "VOLT2": None, "VOLT3": None, "RES2": None}
                 print(message)
                 self.send_queue.put(message)
+                # clear the dmm_queue
                 if self.receive_queue.full():
                     self.receive_queue.get()
            
@@ -303,38 +343,55 @@ class SerialThread(threading.Thread):
                 
                 if test == 1 or test == 3:
                     if body_count == 0:
+                        # When body_count is zero, it means the UID is detect
+                        # Clean the previous data
                         voltage_sum = 0
                         voltage_avg = 0
                     elif body_count >= 10 and body_count <20:
+                        # Do nothing for the first 10 sets of data
+                        # Sum up the following 10 sets of data
                         voltage_sum += voltage
                     elif body_count == 21:
+                        # Set the body_count to max, when it reach to the 21st set of ADC value which will stop recording the block 04 data
+                        # Count the average value
                         body_count = body_max
                         voltage_avg = voltage_sum/10
+                        # Do the judgement
                         if voltage_avg > 5:
                             res = test * 10 + 1
                         else:
                             res = test * 10
+                        # write the result to the message
                         message["VOLT1"] = voltage_avg
                         message["RES1"] = res
                         print(message)
+                        # send the message to queue
                         self.send_queue.put(message)
+                        # write the result to the log file
                         self.record_result(test, message)
 
                 elif test == 2 or test == 4:
                     if body_count == 0:
+                        # When body_count is zero, it means the UID is detect
+                        # At the same time, it will come with the first set of ADC value
+                        # the first set of ADC value is the charged value
                         voltage2 = voltage
                     elif body_count == 1:
+                        # Set the body_count to max, when it reach to the 2nd set of ADC value which will stop recording the block 04 data
+                        # the second set of ADC value is the discharged value
                         body_count = body_max
                         voltage3 = voltage
+                        # write the result to the message
                         message["VOLT2"] = voltage2
                         message["VOLT3"] = voltage3
-                        
+                        # if it is the second station, check if any DMM input value exist
                         if self.receive_queue.empty() and test == 2:
                             message["RES2"] = 99
                             print("empty queue")
                         elif test == 2:
                             dmm_voltage = self.receive_queue.get()
                             message["DMM"] = dmm_voltage
+                            # check if the DMM input value is invalid
                             if dmm_voltage == -1:
                                 message["DMM"] = None
                                 message["RES2"] = 99
@@ -358,7 +415,10 @@ class SerialThread(threading.Thread):
                                 message["RES2"] = 40
                         
                         print(message)
+
+                        # send the message to queue
                         self.send_queue.put(message)
+                        # write the result to the log file
                         self.record_result(test, message)
                         
                     
