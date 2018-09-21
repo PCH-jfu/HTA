@@ -10,7 +10,7 @@ import visa
 
 __author__ = "Justin Fu"
 __copyright__ = "Copyright 2018, Helios Testing Script"
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __email__ = "justin.fu@pchintl.com"
 
 
@@ -273,8 +273,11 @@ class SerialThread(threading.Thread):
         for p in ports:
             if "MSP430" in str(p):
                 port_name = p.device
+                break
             else:
-                sys.exit()
+                port_name = ""
+        if not port_name:
+            sys.exit()
         # Setup serial port
         self.ser = serial.Serial(port_name, 9600, timeout=0.1)
 
