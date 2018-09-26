@@ -7,10 +7,12 @@ import datetime
 import serial.tools.list_ports
 import sys
 import visa
+import os
+import time
 
 __author__ = "Justin Fu"
 __copyright__ = "Copyright 2018, Helios Testing Script"
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 __email__ = "justin.fu@pchintl.com"
 
 
@@ -35,6 +37,7 @@ class Application(tkinter.Frame):
         self.serial_thread = SerialThread(self.serial_queue, self.DMM_queue, self.station_queue, self.shutdown_event)
         self.serial_thread.start()
         
+        self.station_select()
 
     def create_widgets(self):
 
@@ -101,16 +104,26 @@ class Application(tkinter.Frame):
         self.result_cd_label.pack(fill="none", expand=True)
 
         # Station radiobutton
+        station_show = self.station_setup()
         self.station_number = tkinter.IntVar()
-        self.station1_checkbox = tkinter.Radiobutton(self, text="Station_1", variable=self.station_number, value=1, command=self.station_select)
-        self.station1_checkbox.select()
-        self.station1_checkbox.pack(side="left", padx=10)
-        self.station2_checkbox = tkinter.Radiobutton(self, text="Station_2", variable=self.station_number, value=2, command=self.station_select)
-        self.station2_checkbox.pack(side="left", padx=10)
-        self.station3_checkbox = tkinter.Radiobutton(self, text="Station_3", variable=self.station_number, value=3, command=self.station_select)
-        self.station3_checkbox.pack(side="left", padx=10)
-        self.station4_checkbox = tkinter.Radiobutton(self, text="Station_4", variable=self.station_number, value=4, command=self.station_select)
-        self.station4_checkbox.pack(side="left", padx=10)
+        if station_show == '1':
+            self.station_checkbox = tkinter.Radiobutton(self, text="Station_1", variable=self.station_number, value=1, command=self.station_select)
+            self.station_checkbox.pack(side="left", padx=10)
+        elif station_show == '2':
+            self.station_checkbox = tkinter.Radiobutton(self, text="Station_2", variable=self.station_number, value=2, command=self.station_select)
+            self.station_checkbox.pack(side="left", padx=10)
+        elif station_show == '3':
+            self.station_checkbox = tkinter.Radiobutton(self, text="Station_3", variable=self.station_number, value=3, command=self.station_select)
+            self.station_checkbox.pack(side="left", padx=10)
+        elif station_show == '4':
+            self.station_checkbox = tkinter.Radiobutton(self, text="Station_4", variable=self.station_number, value=4, command=self.station_select)
+            self.station_checkbox.pack(side="left", padx=10)
+        else:
+            print("Station setup error.")
+            time.sleep(1)
+            sys.exit()
+        
+        self.station_checkbox.select()
 
         self.version_label = tkinter.Label(self, text="Version: "+__version__)
         self.version_label.pack(side="right", padx=10)
@@ -252,6 +265,22 @@ class Application(tkinter.Frame):
 
         root.after(200, self.GUI_update) 
 
+    def station_setup(self):
+        try:
+            setup_file = open("station_setup", 'r')
+        except FileNotFoundError:
+            print("No setup file")
+            return "error"
+        file_content = setup_file.readlines()
+        first_line = file_content[0].split()
+        if not first_line:
+            print("Empty")
+            return "error"
+        station = first_line[0]
+        print("Test:",station)
+        return station
+
+
 class SerialThread(threading.Thread):
 
     def __init__(self, send_queue, receive_queue, station_queue, event):
@@ -295,6 +324,8 @@ class SerialThread(threading.Thread):
         
         message = {"UID": None, "VOLT1": None, "RES1": None, "DMM": None, "VOLT2": None, "VOLT3": None, "RES2": None}
         
+        self.create_directory()
+
         while True:
             
             # Check the shutdown event
@@ -432,10 +463,15 @@ class SerialThread(threading.Thread):
 
             elif "Block 04 Data:" in read_out and head and body_count >= body_max:
                 sensor_out_count = 0
-            
+
+    def create_directory(self):
+        dirname = "C:\PCH\HeliosLog"
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
+
     def record_result(self, test, message):
         if test == 1 or test == 3:
-            with open("Test"+str(test)+".csv", 'a', newline='') as testfile:
+            with open("C:\PCH\HeliosLog\Test"+str(test)+'_'+str(datetime.date.today())+".csv", 'a', newline='') as testfile:
                 fieldnames = ["time", "uid", "volt1", "result"]
                 writer = csv.DictWriter(testfile, fieldnames=fieldnames)
                 writer.writerow({
@@ -445,7 +481,7 @@ class SerialThread(threading.Thread):
                     fieldnames[3]: message["RES1"]})
 
         elif test == 2 or test == 4:
-            with open("Test"+str(test)+".csv", 'a', newline='') as testfile:
+            with open("C:\PCH\HeliosLog\Test"+str(test)+'_'+str(datetime.date.today())+".csv", 'a', newline='') as testfile:
                 fieldnames = ["time", "uid", "dmm", "volt2", "volt3", "result"]
                 writer = csv.DictWriter(testfile, fieldnames=fieldnames)
                 writer.writerow({
