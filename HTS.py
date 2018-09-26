@@ -9,6 +9,7 @@ import sys
 import visa
 import os
 import time
+from ftplib import FTP
 
 __author__ = "Justin Fu"
 __copyright__ = "Copyright 2018, Helios Testing Script"
@@ -399,10 +400,10 @@ class SerialThread(threading.Thread):
                         message["VOLT1"] = voltage_avg
                         message["RES1"] = res
                         print(message)
-                        # send the message to queue
-                        self.send_queue.put(message)
                         # write the result to the log file
                         self.record_result(test, message)
+                        # send the message to queue
+                        self.send_queue.put(message)
 
                 elif test == 2 or test == 4:
                     if body_count == 0:
@@ -450,10 +451,10 @@ class SerialThread(threading.Thread):
                         
                         print(message)
 
-                        # send the message to queue
-                        self.send_queue.put(message)
                         # write the result to the log file
                         self.record_result(test, message)
+                        # send the message to queue
+                        self.send_queue.put(message)
                         
                     
 
@@ -471,7 +472,8 @@ class SerialThread(threading.Thread):
 
     def record_result(self, test, message):
         if test == 1 or test == 3:
-            with open("C:\PCH\HeliosLog\Test"+str(test)+'_'+str(datetime.date.today())+".csv", 'a', newline='') as testfile:
+            file_name = "C:\PCH\HeliosLog\Test"+str(test)+'_'+str(datetime.date.today())+".csv"
+            with open(file_name, 'a', newline='') as testfile:
                 fieldnames = ["time", "uid", "volt1", "result"]
                 writer = csv.DictWriter(testfile, fieldnames=fieldnames)
                 writer.writerow({
@@ -479,9 +481,12 @@ class SerialThread(threading.Thread):
                     fieldnames[1]: message["UID"], 
                     fieldnames[2]: message["VOLT1"],
                     fieldnames[3]: message["RES1"]})
+            
+            self.ftp_update(file_name)
 
         elif test == 2 or test == 4:
-            with open("C:\PCH\HeliosLog\Test"+str(test)+'_'+str(datetime.date.today())+".csv", 'a', newline='') as testfile:
+            file_name = "C:\PCH\HeliosLog\Test"+str(test)+'_'+str(datetime.date.today())+".csv"
+            with open(file_name, 'a', newline='') as testfile:
                 fieldnames = ["time", "uid", "dmm", "volt2", "volt3", "result"]
                 writer = csv.DictWriter(testfile, fieldnames=fieldnames)
                 writer.writerow({
@@ -492,6 +497,29 @@ class SerialThread(threading.Thread):
                     fieldnames[4]: message["VOLT3"],
                     fieldnames[5]: message["RES2"]})
 
+            self.ftp_update(file_name)
+
+
+    def ftp_update(self, file_name):
+        try:
+            ftp = FTP("pchintl.net")
+        except:
+            print("FTP connection error")
+            pass
+
+        ftp.login("L'Oreal Helios", "PCH#2018")
+
+        file_path = os.path.basename(file_name)[0:5]
+        try:
+            ftp.cwd("HeliosLog/"+file_path)
+        except:
+            ftp.mkd("HeliosLog/"+file_path)
+            ftp.cwd("HeliosLog/"+file_path)
+
+        with open(file_name, 'rb') as fobj:
+            ftp.storlines("STOR " + os.path.basename(file_name), fobj)
+
+        ftp.quit()
 
 
 root = tkinter.Tk()
