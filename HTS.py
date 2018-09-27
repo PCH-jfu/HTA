@@ -13,7 +13,7 @@ from ftplib import FTP
 
 __author__ = "Justin Fu"
 __copyright__ = "Copyright 2018, Helios Testing Script"
-__version__ = "0.3.2"
+__version__ = "0.4.0"
 __email__ = "justin.fu@pchintl.com"
 
 
@@ -105,7 +105,7 @@ class Application(tkinter.Frame):
         self.result_cd_label.pack(fill="none", expand=True)
 
         # Station radiobutton
-        station_show = self.station_setup()
+        station_show, product_line = self.station_setup()
         self.station_number = tkinter.IntVar()
         if station_show == '1':
             self.station_checkbox = tkinter.Radiobutton(self, text="Station_1", variable=self.station_number, value=1, command=self.station_select)
@@ -126,6 +126,8 @@ class Application(tkinter.Frame):
         
         self.station_checkbox.select()
 
+        self.line_label = tkinter.Label(self, text="Product Line: "+product_line)
+        self.line_label.pack(side="left", padx=10)
         self.version_label = tkinter.Label(self, text="Version: "+__version__)
         self.version_label.pack(side="right", padx=10)
 
@@ -271,7 +273,7 @@ class Application(tkinter.Frame):
             setup_file = open("station_setup", 'r')
         except FileNotFoundError:
             print("No setup file")
-            return "error"
+            return "error", 'D'
         file_content = setup_file.readlines()
         first_line = file_content[0].split()
         if not first_line:
@@ -279,7 +281,23 @@ class Application(tkinter.Frame):
             return "error"
         station = first_line[0]
         print("Test:",station)
-        return station
+
+        try:
+            second_line = file_content[1].split()
+        except IndexError:
+            second_line = '0'
+        if second_line[0] == '0':
+            product_line = '0'
+        elif second_line[0] == '1':
+            product_line = '1'
+        elif second_line[0] == '2':
+            product_line = '2'
+        elif second_line[0] == '3':
+            product_line = '3'
+        else:
+            product_line = 'D'
+        print("Line:", product_line)
+        return station, product_line
 
 
 class SerialThread(threading.Thread):
@@ -326,6 +344,7 @@ class SerialThread(threading.Thread):
         message = {"UID": None, "VOLT1": None, "RES1": None, "DMM": None, "VOLT2": None, "VOLT3": None, "RES2": None}
         
         self.create_directory()
+        self.line = self.line_setup()
 
         while True:
             
@@ -472,7 +491,7 @@ class SerialThread(threading.Thread):
 
     def record_result(self, test, message):
         if test == 1 or test == 3:
-            file_name = "C:\PCH\HeliosLog\Test"+str(test)+'_'+str(datetime.date.today())+".csv"
+            file_name = "C:\PCH\HeliosLog\Test"+str(test)+"_Line"+self.line+'_'+str(datetime.date.today())+".csv"
             with open(file_name, 'a', newline='') as testfile:
                 fieldnames = ["time", "uid", "volt1", "result"]
                 writer = csv.DictWriter(testfile, fieldnames=fieldnames)
@@ -485,7 +504,7 @@ class SerialThread(threading.Thread):
             self.ftp_update(file_name)
 
         elif test == 2 or test == 4:
-            file_name = "C:\PCH\HeliosLog\Test"+str(test)+'_'+str(datetime.date.today())+".csv"
+            file_name = "C:\PCH\HeliosLog\Test"+str(test)+"_Line"+self.line+'_'+str(datetime.date.today())+".csv"
             with open(file_name, 'a', newline='') as testfile:
                 fieldnames = ["time", "uid", "dmm", "volt2", "volt3", "result"]
                 writer = csv.DictWriter(testfile, fieldnames=fieldnames)
@@ -520,6 +539,30 @@ class SerialThread(threading.Thread):
             ftp.storlines("STOR " + os.path.basename(file_name), fobj)
 
         ftp.quit()
+    
+    def line_setup(self):
+        try:
+            setup_file = open("station_setup", 'r')
+        except FileNotFoundError:
+            print("No setup file")
+            return 'D'
+        file_content = setup_file.readlines()
+        try:
+            second_line = file_content[1].split()
+        except IndexError:
+            second_line = '0'
+        if second_line[0] == '0':
+            product_line = '0'
+        elif second_line[0] == '1':
+            product_line = '1'
+        elif second_line[0] == '2':
+            product_line = '2'
+        elif second_line[0] == '3':
+            product_line = '3'
+        else:
+            product_line = 'D'
+        print("Line:", product_line)
+        return product_line
 
 
 root = tkinter.Tk()
