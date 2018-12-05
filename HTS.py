@@ -13,13 +13,18 @@ from ftplib import FTP
 
 __author__ = "Justin Fu"
 __copyright__ = "Copyright 2018, Helios Testing Script"
-__version__ = "0.4.0"
+__version__ = "0.4.5"
 __email__ = "justin.fu@pchintl.com"
 
 
 class Application(tkinter.Frame):
-
+    """
+    The class for the whole application
+    """
     def __init__(self, master=None):
+        """
+        Initilization function when the object is created
+        """
         super().__init__(master)
         self.pack(fill="both", expand=True)
         self.create_widgets()
@@ -33,6 +38,7 @@ class Application(tkinter.Frame):
         # Create an event for stopping the thread
         self.shutdown_event = threading.Event()
         # Create a queue for sending station number
+        # TODO: station selection is not used any more, remove this queue
         self.station_queue = queue.Queue(maxsize=1)
         
         self.serial_thread = SerialThread(self.serial_queue, self.DMM_queue, self.station_queue, self.shutdown_event)
@@ -41,17 +47,19 @@ class Application(tkinter.Frame):
         self.station_select()
 
     def create_widgets(self):
-
+        """ 
+        Create the UI widgets
+        """
         # Frame1: Display UID
         self.uid_frame = tkinter.Frame(self, relief="raised", borderwidth=1)
         self.uid_frame.pack(fill='x')
-        # UID label 
+        # UID label for showing string "UID: " 
         self.uid_label = tkinter.Label(self.uid_frame, text="UID: ", font=("Counrier", 25))
         self.uid_label.pack(side="left", padx=10, pady=10)
-        # UID box
+        # UID box for showing UID
         self.uid_box = tkinter.Entry(self.uid_frame, font=("Counrier", 25), bg="light gray")
         self.uid_box.pack(fill="both", padx=10, pady=10, expand=True)
- 
+
 
         # Frame2: Test for ADC average
         self.test_avg_frame = tkinter.Frame(self, relief="raised", borderwidth=1)
@@ -60,13 +68,13 @@ class Application(tkinter.Frame):
         self.test_avg_frame.rowconfigure(0, pad=0)
         self.test_avg_frame.rowconfigure(1, pad=10)
         self.test_avg_frame.pack(fill='x')
-
+        # Showing string "AVG VOLT(mV)"
         self.avg_label = tkinter.Label(self.test_avg_frame, text="AVG VOLT(mV)", font=("Counrier, 10"))
         self.avg_label.grid(row=0, column=3)
-        # ADC average box
+        # ADC average value box
         self.avg_box = tkinter.Text(self.test_avg_frame, height=1, width=6, font=("Counrier, 25"), bg="light gray")
         self.avg_box.grid(row=1, column=3)
-        # Test result
+        # Test result box
         self.result_avg_frame = tkinter.Frame(self.test_avg_frame, relief="raised", borderwidth=1)
         self.result_avg_frame.grid(row=0, column=4, rowspan=2, sticky='w'+'e'+'n'+'s')
         self.result_avg_label = tkinter.Label(self.result_avg_frame, font=("Counrier", 25))
@@ -78,33 +86,37 @@ class Application(tkinter.Frame):
             self.test_cd_frame.columnconfigure(i, pad=10, weight=1, uniform="five")
         self.test_cd_frame.rowconfigure(0, pad=0)
         self.test_cd_frame.rowconfigure(1, pad=10)
-        self.test_cd_frame.pack(fill='x')
-        
+        self.test_cd_frame.pack(fill='x') 
+        # Showing string "DMM VOLT(mV)"
         self.dmm_label = tkinter.Label(self.test_cd_frame, text="DMM VOLT(mV)", font=("Counrier, 10"))
         self.dmm_label.grid(row=0, column=0)
+        # Showing string "CHG VOLT(mV)"
         self.charge_label = tkinter.Label(self.test_cd_frame, text="CHG VOLT(mV)", font=("Counrier, 10"))
         self.charge_label.grid(row=0, column=2)
+        # Showing string "DISCHG VOLT(mV)"
         self.discharge_label = tkinter.Label(self.test_cd_frame, text="DISCHG VOLT(mV)", font=("Counrier, 10"))
         self.discharge_label.grid(row=0, column=3)
-        # DMM box
+        # DMM value box
         self.dmm_box = tkinter.Text(self.test_cd_frame, height=1, width=6, font=("Counrier, 25"), bg="light gray")
         self.dmm_box.grid(row=1, column=0)
-        # Set button
+        # Get button for acquiring voltage from DMM
         self.set_button = tkinter.Button(self.test_cd_frame, height=1, width=6, text="Get", font=("Counrier, 18"), command=self.dmm_set)
         self.set_button.grid(row=0, column=1, rowspan=2)
-        # Charge box
+        # Charged value box
         self.charge_box = tkinter.Text(self.test_cd_frame, height=1, width=6, font=("Counrier, 25"), bg="light gray")
         self.charge_box.grid(row=1, column=2)
-        # Discharge box
+        # Discharge value box
         self.discharge_box = tkinter.Text(self.test_cd_frame, height=1, width=6, font=("Counrier, 25"), bg="light gray")
         self.discharge_box.grid(row=1, column=3)
-        # Test result
+        # Test result box
         self.result_cd_frame = tkinter.Frame(self.test_cd_frame, relief="raised", borderwidth=1)
         self.result_cd_frame.grid(row=0, column=4, rowspan=2, sticky='w'+'e'+'n'+'s')
         self.result_cd_label = tkinter.Label(self.result_cd_frame, font=("Counrier", 25))
         self.result_cd_label.pack(fill="none", expand=True)
 
         # Station radiobutton
+        # TODO: station selection is not used any more, station_setup file is used instead.
+        #       change the radiobutton to another kind of widget
         station_show, product_line = self.station_setup()
         self.station_number = tkinter.IntVar()
         if station_show == '1':
@@ -125,15 +137,20 @@ class Application(tkinter.Frame):
             sys.exit()
         
         self.station_checkbox.select()
-
+        # Show the product line number
         self.line_label = tkinter.Label(self, text="Product Line: "+product_line)
         self.line_label.pack(side="left", padx=10)
+        # Show the version number
         self.version_label = tkinter.Label(self, text="Version: "+__version__)
         self.version_label.pack(side="right", padx=10)
-
+        # Acqure the original color, it is used when test finish
         self.origin_color = self.result_avg_frame.cget("background")
 
+    # TODO: station selection is not used any more, remove this function
     def station_select(self):
+        """
+        Station selection callback function
+        """
         selection = self.station_number.get()
         print(selection)
         if selection == 1:
@@ -151,8 +168,15 @@ class Application(tkinter.Frame):
             self.dmm_box.delete(0.0, "end")
     
     def dmm_set(self):
+        """
+        Get button callback function,
+        acquire voltage from Rigol DMM,
+        this function is only used in station 2
+        """
         if self.station_number.get() == 2:
+            # create a visa resource manager
             rm = visa.ResourceManager()
+            # Find the Rigol DMM according the manager list
             for inst in rm.list_resources():
                 try:
                     rigol = rm.open_resource(inst)
@@ -160,11 +184,13 @@ class Application(tkinter.Frame):
                 except:
                     rigol = ""
             if not rigol:
+                # When the Rigol DMM is not connected, show "nodmm" on the UI
                 print("no rigol")
                 dmm_voltage = -1
                 self.dmm_box.delete(0.0, "end")
                 self.dmm_box.insert(0.0, "nodmm")
             else:
+                # Acquire the voltage from Rigol DMM
                 print(rigol.query("*IDN?"))
                 dmm_voltage = round(float(rigol.query(":measure:voltage:dc?"))*1000, 2)
                 self.dmm_box.delete(0.0, "end")
@@ -175,106 +201,95 @@ class Application(tkinter.Frame):
                 print("clear queue")
             self.DMM_queue.put(dmm_voltage)
             print(dmm_voltage)
-
-
-    def dmm_set_old(self):
-        dmm_value = self.dmm_box.get("1.0", "end")
-        dmm_value = dmm_value.split()
-        
-        if len(dmm_value):
-            dmm_value = dmm_value[0]
-        else:
-            dmm_value = "no value"
-        
-        if self.is_int_or_float(dmm_value):
-            dmm_voltage = float(dmm_value)
-        else:
-            dmm_voltage = -1
-        
-        if self.DMM_queue.full():
-            self.DMM_queue.get()
-            print("clear queue")
-        self.DMM_queue.put(dmm_voltage)
-        print(dmm_voltage)
-
-    
-    def is_int_or_float(self, s):
-        try:
-            float(s)
-            return True
-        except ValueError:
-            return False
-
-    
-        
-
+ 
     def close(self):
+        """
+        Close the UI window and destroy the process
+        """
         self.shutdown_event.set()
         self.serial_thread.join()
         root.destroy()
 
+
     def GUI_update(self):
+        """
+        Update the UI according the the message in queue
+        """
+        # check the queue
         if not self.serial_queue.empty():
             message = self.serial_queue.get()
+            # update UID box
             if message["UID"] == None:
                 self.uid_box.delete(0, "end")
             else:
                 self.uid_box.delete(0, "end")
                 self.uid_box.insert(0, message["UID"])
-
+            # update average voltage box
             if message["VOLT1"] == None:
                 self.avg_box.delete(0.0, "end")
             else:
                 self.avg_box.insert(0.0, message["VOLT1"])
-
+            # update DMM voltage box
             if message["DMM"] == None:
                 self.dmm_box.delete(0.0, "end")
             else:
                 self.dmm_box.insert(0.0, message["DMM"])
-
+            # update charged voltage box
             if message["VOLT2"] == None:
                 self.charge_box.delete(0.0, "end")
             else:
                 self.charge_box.insert(0.0, message["VOLT2"])
-
+            # update discharged voltage box
             if message["VOLT3"] == None:
                 self.discharge_box.delete(0.0, "end")
             else:
                 self.discharge_box.insert(0.0, message["VOLT3"])
-
+            # update the PASS/FAIL message box
             if message["RES1"] == None:
+                # reset
                 self.result_avg_frame.configure(background=self.origin_color)
                 self.result_avg_label.configure(text='', background=self.origin_color)
             elif message["RES1"]%10:
+                # fail
                 self.result_avg_frame.configure(background="red")
                 self.result_avg_label.configure(text=message["RES1"], background="red")
             elif message["RES1"]%10 == 0:
+                # pass
                 self.result_avg_frame.configure(background="green")
                 self.result_avg_label.configure(text="PASS", background="green")
-
+            # update the PASS/FAIL message box
             if message["RES2"] == None:
+                # reset
                 self.result_cd_frame.configure(background=self.origin_color)
                 self.result_cd_label.configure(text='', background=self.origin_color)
             elif message["RES2"]==99:
+                # redo
                 self.result_cd_frame.configure(background="yellow")
                 self.result_cd_label.configure(text="REDO", background="yellow")
             elif message["RES2"]%10:
+                # fail
                 self.result_cd_frame.configure(background="red")
                 self.result_cd_label.configure(text=message["RES2"], background="red")
             elif message["RES2"]%10 == 0:
+                # pass
                 self.result_cd_frame.configure(background="green")
                 self.result_cd_label.configure(text="PASS", background="green")
 
-
+        # update the UI every 200ms
         root.after(200, self.GUI_update) 
 
+
     def station_setup(self):
+        """
+        Read the station setup file
+        """
         try:
             setup_file = open("station_setup", 'r')
         except FileNotFoundError:
             print("No setup file")
             return "error", 'D'
         file_content = setup_file.readlines()
+        setup_file.close()
         first_line = file_content[0].split()
         if not first_line:
             print("Empty")
@@ -301,7 +316,9 @@ class Application(tkinter.Frame):
 
 
 class SerialThread(threading.Thread):
-
+    """
+    Background thread class for reading the serial port and processing the reading
+    """
     def __init__(self, send_queue, receive_queue, station_queue, event):
         threading.Thread.__init__(self)
         # Create an event for stopping the thread
@@ -331,18 +348,34 @@ class SerialThread(threading.Thread):
 
 
     def run(self):
-
+        """
+        Function for reading and processing the data from serial port
+        """
+        # variable for counting the time when the sensor left the board
         sensor_out_count = 0
+        # maximum time of the sensor left the board
         sensor_out_max = 5
+        # variable for storing the UID from the first iteration of the sensor reading
         head = ""
+        # variable for counting the number iteration when the senosr stay on the board
         body_count = 0
+        # maximum iteration of the sensor stay on the board
         body_max= 30
         tail = "END"
 
+        # default test station is #1
         test = 1
         
-        message = {"UID": None, "VOLT1": None, "RES1": None, "DMM": None, "VOLT2": None, "VOLT3": None, "RES2": None}
+        # message for UI update
+        message = {"UID": None, 
+                "VOLT1": None, 
+                "RES1": None, 
+                "DMM": None, 
+                "VOLT2": None, 
+                "VOLT3": None, 
+                "RES2": None}
         
+        # Create directory for log storage
         self.create_directory()
         self.line = self.line_setup()
 
@@ -351,7 +384,7 @@ class SerialThread(threading.Thread):
             # Check the shutdown event
             if self.shutdown_flag.is_set():
                 return
-            
+            # Read the station selection queue 
             if self.station_queue.full():
                 print("get message from station queue")
                 test = self.station_queue.get()
@@ -360,44 +393,57 @@ class SerialThread(threading.Thread):
             read_out = self.ser.readline().decode("latin1")
             # The processing will reset when the sensor is out for a while
             if not read_out and sensor_out_count < sensor_out_max and head:
+                # Count the time of sensor out
                 sensor_out_count += 1
             elif not read_out and sensor_out_count == sensor_out_max and head:
+                # When the time of sensor out reach to maximum, send a empty message to reset UI
                 head = ""
                 sensor_out_count = 0
-                message = {"UID": None, "VOLT1": None, "RES1": None, "DMM": None, "VOLT2": None, "VOLT3": None, "RES2": None}
+                message = {"UID": None, 
+                        "VOLT1": None, 
+                        "RES1": None, 
+                        "DMM": None, 
+                        "VOLT2": None, 
+                        "VOLT3": None, 
+                        "RES2": None}
                 print(message)
                 self.send_queue.put(message)
                 # clear the dmm_queue
                 if self.receive_queue.full():
                     self.receive_queue.get()
            
-            # Acquire the first UID and the following ADC data
+            # Acquire the first iteration UID and the following ADC data
             if "UID:" in read_out and not head:
+                # Get the first iteration UID and assign it to head
                 head = read_out[read_out.find('[')+1: read_out.find(']')]
-                
                 # Reset body message counting 
                 body_count = 0
-                
+                # Store the head into the message
                 message["UID"] = head
+                # Update the UI to show the UID
                 self.send_queue.put(message)
                 #print(message)
-
+            
+            # Acquire the ADC value
             elif "Block 04 Data:" in read_out and head and body_count < body_max:
-                
+                #Get the ADC value and assign it to body
                 position = read_out.find('[') + 5
                 body = read_out[position+2: position+4] + read_out[position: position+2]
                 print(body)
                 try:
+                    # convert the ADC value to a voltage
                     voltage = round((int(body, 16))*0.9/16383/2*1000, 2)
                 except ValueError:
                     sensor_out_count = 0
                     continue
-                # Necessary to reset the sensor_out_cout because there is an empty reading after each cycle
+                # Necessary to reset the sensor_out_cout because 
+                # there is an empty reading after each iteration
                 sensor_out_count = 0
                 
+                # When station #1 and staion #3
                 if test == 1 or test == 3:
                     if body_count == 0:
-                        # When body_count is zero, it means the UID is detect
+                        # When iteration counting is zero, that means there is a new sensor on board
                         # Clean the previous data
                         voltage_sum = 0
                         voltage_avg = 0
@@ -406,14 +452,18 @@ class SerialThread(threading.Thread):
                         # Sum up the following 10 sets of data
                         voltage_sum += voltage
                     elif body_count == 21:
-                        # Set the body_count to max, when it reach to the 21st set of ADC value which will stop recording the block 04 data
-                        # Count the average value
+                        # Set the iteration counting to max, 
+                        # when it reach to the 21st set of ADC value.
+                        # It will stop recording the block 04 data
+                        # At this time, count the average value
                         body_count = body_max
                         voltage_avg = voltage_sum/10
-                        # Do the judgement
+                        # IMPORTANT: Do the judgement
                         if voltage_avg > 5:
+                            # Error code
                             res = test * 10 + 1
                         else:
+                            # Error code
                             res = test * 10
                         # write the result to the message
                         message["VOLT1"] = voltage_avg
@@ -424,46 +474,66 @@ class SerialThread(threading.Thread):
                         # send the message to queue
                         self.send_queue.put(message)
 
+                # When station #2 and station #4
                 elif test == 2 or test == 4:
                     if body_count == 0:
-                        # When body_count is zero, it means the UID is detect
+                        # When interation counting is zero, it means the UID is detect
                         # At the same time, it will come with the first set of ADC value
                         # the first set of ADC value is the charged value
                         voltage2 = voltage
                     elif body_count == 1:
-                        # Set the body_count to max, when it reach to the 2nd set of ADC value which will stop recording the block 04 data
+                        # Set the iteration counting to max, 
+                        # when it reach to the 2nd set of ADC value.
+                        # It will stop recording the block 04 data.
                         # the second set of ADC value is the discharged value
                         body_count = body_max
                         voltage3 = voltage
                         # write the result to the message
                         message["VOLT2"] = voltage2
                         message["VOLT3"] = voltage3
-                        # if it is the second station, check if any DMM input value exist
+                        # if it is station #2, check if any DMM input value exist
                         if self.receive_queue.empty() and test == 2:
                             message["RES2"] = 99
                             print("empty queue")
+                        # if DMM input value exist
                         elif test == 2:
                             dmm_voltage = self.receive_queue.get()
                             message["DMM"] = dmm_voltage
                             # check if the DMM input value is invalid
+                            # IMPORTANT: Do the judgement
                             if dmm_voltage == -1:
                                 message["DMM"] = None
+                                # Error code
                                 message["RES2"] = 99
                                 print("empty box")
+                            # When charged voltage out of 18V +/- 5V
                             elif abs(voltage2-18) > 5:
+                                # Error code
                                 message["RES2"] = 21
+                            # When discharged voltage out of 0 +/- 5V
                             elif voltage3 > 5:
+                                # Error code
                                 message["RES2"] = 22
+                            # When DMM voltage out of 18V +/- 5V
                             elif abs(dmm_voltage-18) > 5:
+                                # Error code
                                 message["RES2"] = 23
+                            # When the different between charged voltage and DMM voltage
+                            # greater than 3.5V
                             elif abs(voltage2-dmm_voltage) > 3.5:
+                                # Error code
                                 message["RES2"] = 24
                             else:
                                 message["RES2"] = 20
+                        # if it is station #4
                         elif test == 4:
+                            # When charged voltage out of 15V +/- 5V
                             if abs(voltage2-15) > 5:
+                                # Error code
                                 message["RES2"] = 41
+                            # When discharged voltage out of 0 +/- 5V
                             elif voltage3 > 5:
+                                # Error code
                                 message["RES2"] = 42
                             else:
                                 message["RES2"] = 40
@@ -474,22 +544,32 @@ class SerialThread(threading.Thread):
                         self.record_result(test, message)
                         # send the message to queue
                         self.send_queue.put(message)
-                        
-                    
-
-
-
+                
+                # Finish one iteration processing
                 body_count += 1
 
+            # Do nothing when the iterating count reach to max
             elif "Block 04 Data:" in read_out and head and body_count >= body_max:
                 sensor_out_count = 0
 
+
     def create_directory(self):
-        dirname = "C:\PCH\HeliosLog"
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        """
+        Create a log directory
+        """
+        dirlog = "C:\PCH\HeliosLog"
+        if not os.path.exists(dirlog):
+            os.makedirs(dirlog)
+        dirmes = self.mes_path_acquire()
+        if not os.path.exists(dirmes):
+            os.makedirs(dirmes)
+
 
     def record_result(self, test, message):
+        """
+        Record the log for normal analysis
+        """
+        # When station #2 and station #4
         if test == 1 or test == 3:
             file_name = "C:\PCH\HeliosLog\Test"+str(test)+"_Line"+self.line+'_'+str(datetime.date.today())+".csv"
             with open(file_name, 'a', newline='') as testfile:
@@ -501,8 +581,10 @@ class SerialThread(threading.Thread):
                     fieldnames[2]: message["VOLT1"],
                     fieldnames[3]: message["RES1"]})
             
-            self.ftp_update(file_name)
+            #self.ftp_update(file_name)
+            self.mes_record(test, message)
 
+        # When station #2 and station #4
         elif test == 2 or test == 4:
             file_name = "C:\PCH\HeliosLog\Test"+str(test)+"_Line"+self.line+'_'+str(datetime.date.today())+".csv"
             with open(file_name, 'a', newline='') as testfile:
@@ -516,15 +598,71 @@ class SerialThread(threading.Thread):
                     fieldnames[4]: message["VOLT3"],
                     fieldnames[5]: message["RES2"]})
 
-            self.ftp_update(file_name)
+            #self.ftp_update(file_name)
+            self.mes_record(test, message)
+   
+
+    def mes_path_acquire(self):
+        """
+        Read the path_setup file for SUGA MES
+        """
+        try:
+            path_file = open("path_setup", 'r')
+        except FileNotFoundError:
+            print("No path file, use C:\PCH\MES")
+            return "C:\\PCH\\MES\\"
+        path = path_file.readline()
+        path_file.close()
+        if not path:
+            return "C:\\PCH\\MES\\"
+        path = path.strip()
+        if path[-1] != '\\':
+            path = path+'\\' 
+        return path
 
 
+    def mes_record(self, test, message):
+        """
+        Record the log file for SUGA MES
+        """
+        mes_path = self.mes_path_acquire()
+        mfile_name = mes_path+datetime.date.today().strftime("%Y%m%d")+datetime.datetime.now().strftime("%H%M%S")+'_'+message["UID"]+".txt"
+        with open(mfile_name, 'w') as mes_file:
+            mes_file.write("PanelBarcode:"+message["UID"]+"\n")
+            mes_file.write("TestProgram:HELIOS_TESTING_SCRIPT\n")
+            mes_file.write("TestProgramVer:"+__version__+"\n")
+            mes_file.write("Operator:TEST\n")
+            mes_file.write("Date:"+datetime.date.today().strftime("%m/%d/%Y")+"\n")
+            mes_file.write("Time:"+datetime.datetime.now().strftime("%H:%M:%S")+"\n"*3)
+            mes_file.write("TestName:TEST{}".format(test)+"\n")
+            mes_file.write("Date:"+datetime.date.today().strftime("%m/%d/%Y")+"\n")
+            mes_file.write("Time:"+datetime.datetime.now().strftime("%H:%M:%S")+"\n")
+            if message["RES1"] and message["RES1"]%10==0:
+                mes_file.write("Result:PASS\n")
+            elif message["RES2"] and message["RES2"]%10==0:
+                mes_file.write("Result:PASS\n")
+            else:
+                mes_file.write("Result:FAIL\n")
+            
+            new_message={}
+            for key,value in message.items():
+                if value is None:
+                    new_message[key] = ''
+                else:
+                    new_message[key] = "{}".format(value)+" "
+            mes_file.write("Value:"+new_message["VOLT1"]+new_message["RES1"]+new_message["DMM"]+new_message["VOLT2"]+new_message["VOLT3"]+new_message["RES2"]+"\n")
+            print("~#~", file=mes_file)
+            
+            
     def ftp_update(self, file_name):
+        """
+        Update the log file in PCH FTP
+        """
         try:
             ftp = FTP("pchintl.net")
         except:
             print("FTP connection error")
-            pass
+            return
 
         ftp.login("L'Oreal Helios", "PCH#2018")
 
@@ -539,8 +677,12 @@ class SerialThread(threading.Thread):
             ftp.storlines("STOR " + os.path.basename(file_name), fobj)
 
         ftp.quit()
-    
+
+
     def line_setup(self):
+        """
+        Set the product line number
+        """
         try:
             setup_file = open("station_setup", 'r')
         except FileNotFoundError:
